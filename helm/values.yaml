@@ -10,7 +10,7 @@ cronjob:
       value: "America/Sao_Paulo"
     #auto-editor
     - name: AUTO_EDITOR_MARGIN
-      value: "0.05sec"
+      value: "0.08sec,0.3sec"
     #minio
     - name: MINIO_URL
       value: "svc-minio-api.minio.svc.cluster.local"
