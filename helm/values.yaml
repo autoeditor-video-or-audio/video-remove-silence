@@ -1,0 +1,44 @@
+app: video-remove-silence
+component: autoeditor-video-or-audio
+core: autoeditor
+version: 1.0.1
+
+cronjob:
+  schedule: "* * * * *"
+  env:
+    - name: "TZ"
+      value: "America/Sao_Paulo"
+    #auto-editor
+    - name: AUTO_EDITOR_MARGIN
+      value: "0.05sec"
+    #minio
+    - name: MINIO_URL
+      value: "svc-minio-api.minio.svc.cluster.local"
+    - name: MINIO_PORT
+      value: "9000"
+    - name: MINIO_ROOT_USER
+      valueFrom:
+        secretKeyRef:
+          name: s-minio
+          key: MINIO_ACCESS_KEY
+    - name: MINIO_ROOT_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: s-minio
+          key: MINIO_SECRET_KEY
+  command:
+    - exec: "python"
+    - exec: "main.py"
+  resources:
+    limits:
+      memory: "6Gi"
+      cpu: "4.0"
+  affinity:
+    hosts:
+      - name: k8s-03
+      - name: k8s-04
+  restartPolicy: OnFailure
+  ttlSecondsAfterFinished: 7200
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
