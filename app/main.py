@@ -8,6 +8,7 @@ import numpy as np
 import moviepy.editor as mp
 from moviepy.editor import AudioFileClip, VideoClip
 from utils import green, logger, getListHashTag, getDataFile, sendNotification, removeFolder
+from pymediainfo import MediaInfo
 
 current_datetime = datetime.now()
 currentAction = current_datetime.strftime("%d-%m-%Y--%H-%M-%S")
@@ -68,6 +69,21 @@ def download_latest_mp4(client, bucket_name, download_name):
         logger.debug(green("Erro ao acessar o MinIO.", exc))
         return None, None
 
+def get_margin_from_metadata(file_path):
+    """
+    Lê o valor do metadado 'AUTO_EDITOR_MARGIN' de um arquivo .mp4.
+    Retorna um valor padrão (0.04sec) se o metadado não estiver presente.
+    """
+    media_info = MediaInfo.parse(file_path)
+    for track in media_info.tracks:
+        if track.track_type == "General":
+            # Altere 'margin' pelo campo de metadado que você está utilizando
+            margin = getattr(track, 'comment', None)  # Exemplo: substitua 'comment' pelo campo desejado
+            if margin:
+                return margin  # Retorna o valor encontrado no metadado
+    margin = os.getenv("AUTO_EDITOR_MARGIN", "0.04sec")
+    return margin  # Retorno padrão caso o metadado não seja encontrado
+
 def process_video(file_path, output_dir):
     # Extraindo o nome do arquivo sem o diretório
     name_processed_file = os.path.basename(file_path)
@@ -75,8 +91,8 @@ def process_video(file_path, output_dir):
     # Caminho de saída para o arquivo editado
     output_file_path = os.path.join(output_dir, f"WithoutSilence-{name_processed_file}")
 
-    # Lê o valor da margem do ambiente, com padrão para "0.04sec" caso não esteja definido
-    margin = os.getenv("AUTO_EDITOR_MARGIN", "0.04sec")
+    # Lê o valor da margem do metadado ou do ambiente
+    margin = get_margin_from_metadata(file_path)
 
     # Executando o auto-editor com a margem configurada
     subprocess.run([
