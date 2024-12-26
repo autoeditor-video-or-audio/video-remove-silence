@@ -80,7 +80,11 @@ def get_margin_from_metadata(file_path):
             # Altere 'margin' pelo campo de metadado que você está utilizando
             margin = getattr(track, 'comment', None)  # Exemplo: substitua 'comment' pelo campo desejado
             if margin:
-                return margin  # Retorna o valor encontrado no metadado
+                logger.debug(green(f"Comment: {margin}"))
+                margin = margin.split('/')
+                logger.debug(green(f"Position 0: {margin[0]}"))
+                return margin[0]
+                # return margin  # Retorna o valor encontrado no metadado
     margin = os.getenv("AUTO_EDITOR_MARGIN", "0.04sec")
     return margin  # Retorno padrão caso o metadado não seja encontrado
 
