@@ -12,6 +12,5 @@ WORKDIR /app
 
 COPY ./app/ .
 
-
 # ENTRYPOINT ["bash"]
 # ENTRYPOINT ["python3", "run.py"]
