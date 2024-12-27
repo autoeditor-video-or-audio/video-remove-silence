@@ -5,5 +5,4 @@ numpy==1.24
 auto-editor
 minio
 requests
-ffmpeg-python
 pymediainfo
