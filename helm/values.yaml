@@ -10,8 +10,7 @@ deployment:
   sendlogs: "true"
   ports:
   - name: "5000-vrs"
-    port: 5000
-    targetPort: 5000
+    containerPort: 5000
     protocol: TCP
   env:
     - name: "TZ"
