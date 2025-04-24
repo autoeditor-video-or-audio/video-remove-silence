@@ -6,8 +6,13 @@ version: 1.0.8
 # cronjob:
 #   schedule: "* * * * *"
 deployment:
-  replicas: 0
+  replicas: 1
   sendlogs: "true"
+  ports:
+  - name: "5000-vrs"
+    port: 5000
+    targetPort: 5000
+    protocol: TCP
   env:
     - name: "TZ"
       value: "America/Sao_Paulo"
@@ -60,8 +65,22 @@ deployment:
     hosts:
       - name: k8s-03
       - name: k8s-04
+
   # restartPolicy: OnFailure
   # ttlSecondsAfterFinished: 7200
   # concurrencyPolicy: Forbid
   # successfulJobsHistoryLimit: 1
   # failedJobsHistoryLimit: 2
+
+services:
+  - name: svc-video-remove-silence
+    type: ClusterIP
+    selector:
+      app: video-remove-silence
+      component: autoeditor-video-or-audio
+    ports:
+      - name: 5000-vrs-tcp
+        port: 80
+        targetPort: 5000
+        protocol: TCP
+
