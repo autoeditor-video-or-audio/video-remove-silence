@@ -29,6 +29,23 @@ deployment:
         secretKeyRef:
           name: s-minio
           key: MINIO_SECRET_KEY
+    # rabbitmq
+    - name: RABBITMQ_HOST
+      value: "svc-rabbitmq.rabbitmq.svc.cluster.local"
+    - name: RABBITMQ_PORT
+      value: "5672"
+    - name: RABBITMQ_VHOST
+      value: "syrin"
+    - name: RABBITMQ_USER
+      valueFrom:
+        secretKeyRef:
+          name: s-rabbitmq
+          key: RABBITMQ_DEFAULT_USER
+    - name: RABBITMQ_PASS
+      valueFrom:
+        secretKeyRef:
+          name: s-rabbitmq
+          key: RABBITMQ_DEFAULT_PASS
   command:
     - exec: "python"
     - exec: "main.py"
