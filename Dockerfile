@@ -13,8 +13,10 @@ WORKDIR /app
 
 COPY ./app/ .
 
+# Expose port 80
+EXPOSE 80
 # ENTRYPOINT ["bash"]
 # ENTRYPOINT ["python3", "run.py"]
 
 # docker build -t video-remove-silence .
-# docker rm -f pod && docker run -ti --name pod -v ./app:/app/ --env-file env.list video-remove-silence bash
+# docker rm -f pod && docker run -ti --name pod --network=host -v ./app:/app/ --env-file env.list video-remove-silence bash

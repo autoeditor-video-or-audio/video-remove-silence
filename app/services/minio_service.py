@@ -22,4 +22,4 @@ def postFileInBucket(client, bucket_name, path_dest, path_src, content_type=None
         content_type = 'text/plain'
 
     client.fput_object(bucket_name, path_dest, path_src, content_type=content_type)
-
+    logger.info(f"Arquivo {path_src} enviado para {bucket_name}/{path_dest}")

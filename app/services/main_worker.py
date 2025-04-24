@@ -35,16 +35,13 @@ def publish_result(message):
     except Exception as e:
         logger.error(f"Erro ao publicar no RabbitMQ: {e}")
 
-def process_video_message():
+def process_video_payload(message):
     try:
-        with open("msg.json", "r") as f:
-            message = json.load(f)
-
         filename = message.get("filename")
         subdir = message.get("subdir")
 
         if not filename or not subdir:
-            logger.error("msg.json inválido. Parando processamento.")
+            logger.error("Payload inválido. filename e subdir são obrigatórios.")
             return
 
         create_directory(WORK_DIR)
@@ -64,15 +61,15 @@ def process_video_message():
             logger.error("Erro: arquivo de saída não gerado.")
             return
 
-        postFileInBucket(client, BUCKET_NAME, remote_path, output_path, 'video/mp4')
+        postFileInBucket(client, BUCKET_NAME, remote_path, output_path)
 
-        message.update({
-            "file_name": f"nosilence-{filename}",
+        result_message = {
+            "filename": filename,
             "bucket_path": remote_path,
             "process_no_silence_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        })
+        }
 
-        publish_result(message)
+        publish_result(result_message)
 
         try:
             client.remove_object(BUCKET_NAME, f"{subdir}/{filename}")
@@ -84,49 +81,3 @@ def process_video_message():
 
     except Exception as e:
         logger.error(f"Erro ao processar vídeo: {e}")
-
-def consume_and_prepare():
-    try:
-        credentials = pika.PlainCredentials(
-            os.getenv('RABBITMQ_USER', ''),
-            os.getenv('RABBITMQ_PASS', '')
-        )
-        connection = pika.BlockingConnection(pika.ConnectionParameters(
-            host=os.getenv('RABBITMQ_HOST', ''),
-            port=int(os.getenv('RABBITMQ_PORT', 5672)),
-            virtual_host=os.getenv('RABBITMQ_VHOST', '/'),
-            credentials=credentials
-        ))
-        channel = connection.channel()
-        queue = os.getenv("QUEUE_INPUT", "00_audiocast")
-        channel.queue_declare(queue=queue, durable=True)
-
-        method_frame, header_frame, body = channel.basic_get(queue=queue, auto_ack=False)
-
-        if not method_frame:
-            logger.info("Nenhuma mensagem na fila.")
-            connection.close()
-            return
-
-        message = json.loads(body)
-        filename = message.get("filename")
-        subdir = message.get("subdir")
-
-        if not filename or not subdir:
-            logger.error("Mensagem inválida. Dando ack mesmo assim.")
-            channel.basic_ack(delivery_tag=method_frame.delivery_tag)
-            connection.close()
-            return
-
-        with open("msg.json", "w") as f:
-            json.dump(message, f)
-
-        # Dá ack ANTES de processar para evitar timeout
-        channel.basic_ack(delivery_tag=method_frame.delivery_tag)
-        connection.close()
-
-        # Agora processa
-        process_video_message()
-
-    except Exception as e:
-        logger.error(f"Erro durante consumo da fila: {e}")
