@@ -6,3 +6,4 @@ auto-editor
 minio
 requests
 pymediainfo
+pika==1.3.2

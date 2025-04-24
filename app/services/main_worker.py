@@ -1,0 +1,132 @@
+import os
+import json
+import logging
+from datetime import datetime
+from services.minio_service import initialize_minio_client, postFileInBucket
+from config import WORK_DIR, BUCKET_NAME, NOSILENCE_PREFIX, QUEUE_OUTPUT
+from utils.file_utils import create_directory, remove_temp_files
+from services.silence_remover import remove_silence
+import pika
+
+logger = logging.getLogger(__name__)
+
+def publish_result(message):
+    try:
+        credentials = pika.PlainCredentials(
+            os.getenv('RABBITMQ_USER', ''),
+            os.getenv('RABBITMQ_PASS', '')
+        )
+        connection = pika.BlockingConnection(pika.ConnectionParameters(
+            host=os.getenv('RABBITMQ_HOST', ''),
+            port=int(os.getenv('RABBITMQ_PORT', 5672)),
+            virtual_host=os.getenv('RABBITMQ_VHOST', '/'),
+            credentials=credentials
+        ))
+        channel = connection.channel()
+        channel.queue_declare(queue=QUEUE_OUTPUT, durable=True)
+        channel.basic_publish(
+            exchange='',
+            routing_key=QUEUE_OUTPUT,
+            body=json.dumps(message),
+            properties=pika.BasicProperties(delivery_mode=2)
+        )
+        logger.info("Mensagem publicada com sucesso.")
+        connection.close()
+    except Exception as e:
+        logger.error(f"Erro ao publicar no RabbitMQ: {e}")
+
+def process_video_message():
+    try:
+        with open("msg.json", "r") as f:
+            message = json.load(f)
+
+        filename = message.get("filename")
+        subdir = message.get("subdir")
+
+        if not filename or not subdir:
+            logger.error("msg.json inválido. Parando processamento.")
+            return
+
+        create_directory(WORK_DIR)
+        client = initialize_minio_client()
+
+        local_path = os.path.join(WORK_DIR, filename)
+        output_path = os.path.join(WORK_DIR, f"nosilence-{filename}")
+        remote_path = f"{NOSILENCE_PREFIX}/{filename}"
+
+        logger.info(f"Baixando {subdir}/{filename}")
+        client.fget_object(BUCKET_NAME, f"{subdir}/{filename}", local_path)
+
+        logger.info("Removendo silêncio...")
+        remove_silence(local_path, output_path)
+
+        if not os.path.exists(output_path) or os.path.getsize(output_path) == 0:
+            logger.error("Erro: arquivo de saída não gerado.")
+            return
+
+        postFileInBucket(client, BUCKET_NAME, remote_path, output_path, 'video/mp4')
+
+        message.update({
+            "file_name": f"nosilence-{filename}",
+            "bucket_path": remote_path,
+            "process_no_silence_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        })
+
+        publish_result(message)
+
+        try:
+            client.remove_object(BUCKET_NAME, f"{subdir}/{filename}")
+            logger.info(f"Removido do bucket: {subdir}/{filename}")
+        except Exception as e:
+            logger.warning(f"Erro ao deletar original: {e}")
+
+        remove_temp_files(local_path, output_path)
+
+    except Exception as e:
+        logger.error(f"Erro ao processar vídeo: {e}")
+
+def consume_and_prepare():
+    try:
+        credentials = pika.PlainCredentials(
+            os.getenv('RABBITMQ_USER', ''),
+            os.getenv('RABBITMQ_PASS', '')
+        )
+        connection = pika.BlockingConnection(pika.ConnectionParameters(
+            host=os.getenv('RABBITMQ_HOST', ''),
+            port=int(os.getenv('RABBITMQ_PORT', 5672)),
+            virtual_host=os.getenv('RABBITMQ_VHOST', '/'),
+            credentials=credentials
+        ))
+        channel = connection.channel()
+        queue = os.getenv("QUEUE_INPUT", "00_audiocast")
+        channel.queue_declare(queue=queue, durable=True)
+
+        method_frame, header_frame, body = channel.basic_get(queue=queue, auto_ack=False)
+
+        if not method_frame:
+            logger.info("Nenhuma mensagem na fila.")
+            connection.close()
+            return
+
+        message = json.loads(body)
+        filename = message.get("filename")
+        subdir = message.get("subdir")
+
+        if not filename or not subdir:
+            logger.error("Mensagem inválida. Dando ack mesmo assim.")
+            channel.basic_ack(delivery_tag=method_frame.delivery_tag)
+            connection.close()
+            return
+
+        with open("msg.json", "w") as f:
+            json.dump(message, f)
+
+        # Dá ack ANTES de processar para evitar timeout
+        channel.basic_ack(delivery_tag=method_frame.delivery_tag)
+        connection.close()
+
+        # Agora processa
+        process_video_message()
+
+    except Exception as e:
+        logger.error(f"Erro durante consumo da fila: {e}")
