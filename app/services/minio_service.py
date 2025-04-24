@@ -16,5 +16,10 @@ def initialize_minio_client():
 def postFileInBucket(client, bucket_name, path_dest, path_src, content_type=None):
     if path_src.endswith('.mp4'):
         content_type = 'video/mp4'
+    elif path_src.endswith('.mp3'):
+        content_type = 'audio/mpeg'
+    elif path_src.endswith('.txt'):
+        content_type = 'text/plain'
+
     client.fput_object(bucket_name, path_dest, path_src, content_type=content_type)
-    logger.info(f"Arquivo {path_src} enviado para {bucket_name}/{path_dest}")
+
