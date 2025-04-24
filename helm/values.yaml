@@ -3,8 +3,11 @@ component: autoeditor-video-or-audio
 core: autoeditor
 version: 1.0.6
 
-cronjob:
-  schedule: "* * * * *"
+# cronjob:
+#   schedule: "* * * * *"
+deployment:
+  replicas: 0
+  sendlogs: "true"
   env:
     - name: "TZ"
       value: "America/Sao_Paulo"
@@ -37,8 +40,8 @@ cronjob:
     hosts:
       - name: k8s-03
       - name: k8s-04
-  restartPolicy: OnFailure
-  ttlSecondsAfterFinished: 7200
-  concurrencyPolicy: Forbid
-  successfulJobsHistoryLimit: 1
-  failedJobsHistoryLimit: 2
+  # restartPolicy: OnFailure
+  # ttlSecondsAfterFinished: 7200
+  # concurrencyPolicy: Forbid
+  # successfulJobsHistoryLimit: 1
+  # failedJobsHistoryLimit: 2
