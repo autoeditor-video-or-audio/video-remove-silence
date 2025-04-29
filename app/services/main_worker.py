@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import subprocess
 from datetime import datetime
 from services.minio_service import initialize_minio_client, postFileInBucket
 from config import WORK_DIR, BUCKET_NAME, NOSILENCE_PREFIX, QUEUE_OUTPUT
@@ -9,6 +10,40 @@ from services.silence_remover import remove_silence
 import pika
 
 logger = logging.getLogger(__name__)
+
+def get_video_resolution(file_path):
+    try:
+        # Chama ffprobe para pegar a resolução
+        result = subprocess.run(
+            [
+                'ffprobe', 
+                '-v', 'error', 
+                '-select_streams', 'v:0', 
+                '-show_entries', 'stream=width,height', 
+                '-of', 'json', 
+                file_path
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+
+        if result.returncode != 0:
+            logger.error(f"Erro ao obter resolução: {result.stderr}")
+            return None, None
+
+        info = json.loads(result.stdout)
+        streams = info.get('streams', [])
+        if not streams:
+            return None, None
+
+        width = streams[0].get('width')
+        height = streams[0].get('height')
+        return width, height
+
+    except Exception as e:
+        logger.error(f"Erro ao extrair resolução do vídeo: {e}")
+        return None, None
 
 def publish_result(message):
     try:
@@ -61,12 +96,33 @@ def process_video_payload(message):
             logger.error("Erro: arquivo de saída não gerado.")
             return
 
+        # Identifica extensão do arquivo
+        ext = os.path.splitext(filename)[1].lower()
+
+        # Se for áudio (.mp3, .wav, etc.)
+        if ext in ['.mp3', '.wav', '.ogg', '.flac']:
+            resolution = None
+            layout = "square"
+        else:
+            # Se for vídeo, pega a resolução
+            width, height = get_video_resolution(output_path)
+            if width is None or height is None:
+                resolution = None
+                layout = None
+            else:
+                resolution = f"{width}x{height}"
+                layout = "horizontal" if width >= height else "vertical"
+
+        # Faz o upload para o MinIO
         postFileInBucket(client, BUCKET_NAME, remote_path, output_path)
 
+        # Cria a mensagem com campos adicionais
         result_message = {
             "filename": filename,
             "bucket_path": remote_path,
-            "process_no_silence_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            "process_no_silence_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "resolution": resolution,
+            "layout": layout
         }
 
         publish_result(result_message)
