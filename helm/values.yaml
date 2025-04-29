@@ -17,7 +17,7 @@ deployment:
       value: "America/Sao_Paulo"
     #auto-editor
     - name: AUTO_EDITOR_MARGIN
-      value: "0.06sec,0.4sec"
+      value: "0.1sec,0.1sec"
     #minio
     - name: MINIO_URL
       value: "svc-minio-api.minio.svc.cluster.local"
