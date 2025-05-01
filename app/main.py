@@ -14,10 +14,11 @@ def process():
     filename = data.get("filename")
     subdir = data.get("subdir")
     telegramChatId = data.get("telegramChatId")
+    telegramPayload = data.get("telegramPayload")
 
-    if not filename or not subdir or not telegramChatId:
+    if not filename or not subdir or not telegramChatId or not telegramPayload:
         return Response(
-            json.dumps({"status": "error", "message": "Campos 'filename', 'subdir' e 'telegramChatId' são obrigatórios."}, ensure_ascii=False),
+            json.dumps({"status": "error", "message": "Campos 'filename', 'subdir', 'telegramChatId' e 'telegramPayload' são obrigatórios."}, ensure_ascii=False),
             mimetype='application/json',
             status=400
         )
@@ -41,7 +42,7 @@ def process():
     def background_task(payload):
         process_video_payload(payload)
 
-    Thread(target=background_task, args=({"filename": filename, "subdir": subdir, "telegramChatId": telegramChatId},)).start()
+    Thread(target=background_task, args=({"filename": filename, "subdir": subdir, "telegramChatId": telegramChatId, "telegramPayload": telegramPayload},)).start()
 
     return Response(
         json.dumps({"status": "processing", "message": f"Iniciado para {filename}"}, ensure_ascii=False),

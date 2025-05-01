@@ -75,6 +75,7 @@ def process_video_payload(message):
         filename = message.get("filename")
         subdir = message.get("subdir")
         telegramChatId = message.get("telegramChatId")
+        telegramPayload = message.get("telegramPayload")
 
         if not filename or not subdir:
             logger.error("Payload inválido. filename e subdir são obrigatórios.")
@@ -123,6 +124,7 @@ def process_video_payload(message):
             "bucket_path": remote_path,
             "process_no_silence_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "telegramChatId": telegramChatId,
+            "telegramPayload": telegramPayload,
             "resolution": resolution,
             "layout": layout
         }
