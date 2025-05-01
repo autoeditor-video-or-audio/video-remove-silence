@@ -41,7 +41,7 @@ def process():
     def background_task(payload):
         process_video_payload(payload)
 
-    Thread(target=background_task, args=({"filename": filename, "subdir": subdir, "telegramChatId", telegramChatId},)).start()
+    Thread(target=background_task, args=({"filename": filename, "subdir": subdir, "telegramChatId": telegramChatId},)).start()
 
     return Response(
         json.dumps({"status": "processing", "message": f"Iniciado para {filename}"}, ensure_ascii=False),
