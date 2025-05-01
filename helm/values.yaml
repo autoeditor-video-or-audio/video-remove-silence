@@ -1,7 +1,7 @@
 app: video-remove-silence
 component: autoeditor-video-or-audio
 core: autoeditor
-version: 1.0.14
+version: 1.0.15
 
 # cronjob:
 #   schedule: "* * * * *"
